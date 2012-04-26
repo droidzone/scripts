@@ -1,0 +1,272 @@
+#!/bin/bash
+#
+# SolusVM Controller v0.1
+#
+# Jay Scott
+# www.jayscott.co.uk
+# jay@jayscott.co.uk
+#
+#
+# Script to allow you to interact with VM's controlled by SolusVM using the 
+# client API key and hash. Allows you do do all functions available via the
+# API at the time of coding :p
+#
+# P.S The Key and Hash below don't work :p
+#
+# TODO: Error checking
+#       Multiple URLS, Match URLS to VM
+#       reboot,boot and shutdown can be simplified
+#       if/then can be a case or globbed
+#
+
+# START CONF
+
+# Add you API Key and Hash here, The format here is as follows:
+#
+# Name <space> KEY <space> HASH
+
+VM[0]='VoIP NL91P-438PT-VNTLH c0086475FDa92c688b0e80da285a18cc7cc12cda4'
+VM[1]='Web PQCAH-U9B74-YZYW1 212597f9f21300c87739432279afea5698'
+
+# API URL, normal just you CP address with /api/client/command.php added to
+# the end.
+
+URL="https://<your-cp>/com:5656/api/client/command.php"
+
+# END CONF
+
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+RESET='\e[00m'
+DATAFILE="/tmp/solusvm-data.txt"
+
+#
+# Display usage
+#
+usage(){
+  printf "\nSolusVM Client API Commander by Jay Scott \n\n"
+  printf "[www.jayscott.co.uk]\n\n"
+  printf "Usage $0 <command>"
+  printf "\n\ncommand options:\n"
+  printf "%-20s %-20s\n" "list" "Display a list of all defined VMs"
+  printf "%-20s %-10s\n" "stats [id]" "Show various Stats on the specified VM ID"
+  printf "%-20s %-10s\n" "status" "Display Online/Offline Status of all VMs"
+  printf "%-20s %-10s\n\n" "reboot [id]" "Reboot the specified VM ID"
+  printf "%-20s %-10s\n\n" "boot [id]" "Boot up the specified VM ID"
+  printf "%-20s %-10s\n\n" "shutdown [id]" "Shutdown the specified VM ID"
+	exit 1
+}
+
+#
+# Convert bytes to MB
+#
+getMB(){
+  echo "$1" | awk '{ f = $1 / 1024 / 1024 ; print f "MB" }'
+}
+
+#
+# Display the current status of All VM's
+#
+getStatus(){
+  
+  printf "\n-> VM Status\n\n"
+  printf "%-30s %-16s %-14s\n" "Hostname" "IP Address" "Status"
+  printf "%-30s %-16s %-14s\n" "--------" "----------" "------"
+  
+  for i in "${VM[@]}"
+  do :
+    
+    arr=(`echo $i | tr " " "\n"`)
+    POST="key=${arr[1]}&hash=${arr[2]}"
+
+    curl -s $URL -d "$POST&action=status" > $DATAFILE 
+    STATUS=`sed -n 's/.*<statusmsg>\(.*\)<\/statusmsg>.*/\1/p' $DATAFILE`
+    HOST=`sed -n 's/.*<hostname>\(.*\)<\/hostname>.*/\1/p' $DATAFILE`
+    IP=`sed -n 's/.*<ipaddress>\(.*\)<\/ipaddress>.*/\1/p' $DATAFILE`
+
+    [[ $STATUS == "online" ]] && printf "%b" $GREEN || printf "%b" $RED
+    printf "%-30s %-16s %-14s\n" $HOST $IP $STATUS
+    
+  done
+}
+
+#
+# List all Vm's defined above
+#
+listVM(){
+  
+  COUNT=0
+  printf "\n-> VM List\n\n"
+  printf "%-4s %-20s %-20s %-45s\n" "ID" "Name" "Key" "Hash"
+  printf "%-4s %-20s %-20s %-45s\n" "--" "----" "---" "----"
+  
+  for i in "${VM[@]}"
+  do :
+    arr=(`echo $i | tr " " "\n"`)
+    printf "%-4s %-20s %-20s %-45s\n" "$COUNT" "${arr[0]}" "${arr[1]}" "${arr[2]}"
+    COUNT=$((COUNT+1))
+  done
+}
+
+#
+# Reboot the specified VM
+#
+rebootVM(){
+  
+  ID=${args[1]}
+  arr=(`echo ${VM[$ID]} | tr " " "\n"`)
+  HOST=${arr[0]}
+  
+  printf "\n-> Rebooting %s\n\n" $HOST
+  POST="key=${arr[1]}&hash=${arr[2]}"
+  curl -s $URL -d "$POST&action=reboot" > $DATAFILE 
+  STATUS=`sed -n 's/.*<status>\(.*\)<\/status>.*/\1/p' $DATAFILE`
+
+  [[ $STATUS == "success" ]] && printf "%b" $GREEN || printf "%b" $RED
+  printf "Reboot %s\n\n" $STATUS
+  
+}
+
+#
+# Boot the specified VM
+#
+bootVM(){
+  
+  ID=${args[1]}
+  arr=(`echo ${VM[$ID]} | tr " " "\n"`)
+  HOST=${arr[0]}
+  
+  printf "\n-> Booting up %s\n\n" $HOST
+  POST="key=${arr[1]}&hash=${arr[2]}"
+  curl -s $URL -d "$POST&action=boot" > $DATAFILE 
+  STATUS=`sed -n 's/.*<status>\(.*\)<\/status>.*/\1/p' $DATAFILE`
+
+  [[ $STATUS == "success" ]] && printf "%b" $GREEN || printf "%b" $RED
+  printf "Booted up %s\n\n" $STATUS
+  
+}
+
+#
+# Shutdown the specified VM
+#
+shutdownVM(){
+  
+  ID=${args[1]}
+  arr=(`echo ${VM[$ID]} | tr " " "\n"`)
+  HOST=${arr[0]}
+  
+  printf "\n-> Shutting Down %s\n\n" $HOST
+  POST="key=${arr[1]}&hash=${arr[2]}"
+  curl -s $URL -d "$POST&action=shutdown" > $DATAFILE 
+  STATUS=`sed -n 's/.*<status>\(.*\)<\/status>.*/\1/p' $DATAFILE`
+
+  [[ $STATUS == "success" ]] && printf "%b" $GREEN || printf "%b" $RED
+  printf "Shutdown %s\n\n" $STATUS
+  
+}
+
+#
+# Get all stat information on the specified VM (hdd, mem,bw,ipaddr)
+#
+statsVM(){
+  
+  ID=${args[1]}
+  arr=(`echo ${VM[$ID]} | tr " " "\n"`)
+  HOST=${arr[0]}
+  
+  printf "\n-> Getting Stats for %s\n\n" $HOST
+  POST="key=${arr[1]}&hash=${arr[2]}"
+  curl -s $URL -d "$POST&action=info&ipaddr=true&mem=true&hdd=true&bw=true" > $DATAFILE 
+  
+  # IP Address
+  IPADDRESS=`sed -n 's/.*<ipaddr>\(.*\)<\/ipaddr>.*/\1/p' $DATAFILE`
+  arrIP=(`echo ${IPADDRESS} | tr "," "\n"`)
+  printf "Assigned IP Address's\n"
+  printf "%s\n\n" "---------------------"
+  for i in "${arrIP[@]}"
+  do
+    printf "%-20s\n" "$i"
+  done
+  
+  printf "\n"
+  
+  # Bandwidth Usage
+  BW=`sed -n 's/.*<bw>\(.*\)<\/bw>.*/\1/p' $DATAFILE`
+  arrBW=(`echo ${BW} | tr "," "\n"`)
+
+  printf "Bandwidth Usage\n"
+  printf "%s\n\n" "----------------"
+  printf "%-20s %-20s\n" "Total Bandwidth:" $(getMB ${arrBW[0]})
+  printf "%-20s %-20s\n" "Used Bandwidth:"  $(getMB ${arrBW[1]})
+  printf "%-20s %-20s\n" "Free Bandwidth:"  $(getMB ${arrBW[2]})
+  
+  printf "\n"
+  
+  # HDD Usage
+  HDD=`sed -n 's/.*<hdd>\(.*\)<\/hdd>.*/\1/p' $DATAFILE`
+  arrHDD=(`echo ${HDD} | tr "," "\n"`)
+
+  printf "Hard Disk Usage\n"
+  printf "%s\n\n" "----------------"
+  printf "%-20s %-20s\n" "Total Space:" $(getMB ${arrHDD[0]})
+  printf "%-20s %-20s\n" "Used Space:" $(getMB ${arrHDD[1]})
+  printf "%-20s %-20s\n" "Free Space:" $(getMB ${arrHDD[2]})
+  
+  printf "\n"
+  
+  # Memory Usage
+  MEM=`sed -n 's/.*<mem>\(.*\)<\/mem>.*/\1/p' $DATAFILE`
+  arrMEM=(`echo ${MEM} | tr "," "\n"`)
+
+  printf "Memory Usage\n"
+  printf "%s\n\n" "-------------"
+  printf "%-20s %-20s\n" "Total Memory:" $(getMB ${arrMEM[0]})
+  printf "%-20s %-20s\n" "Used Memory:" $(getMB ${arrMEM[1]})
+  printf "%-20s %-20s\n" "Free Memory:" $(getMB ${arrMEM[2]})
+
+}
+
+[[ $# -eq 0 ]] && usage || args=("$@")
+
+[[ ${args[0]} = "list" ]] && listVM
+[[ ${args[0]} = "status" ]] && getStatus
+
+if [[ ${args[0]} = "stats" ]]
+then
+  if [[ $# -ne 2 ]]
+  then
+    printf "\nNo VM ID given, use list command is you dont know it\n"
+    exit 1
+  fi
+  statsVM
+fi
+
+if [[ ${args[0]} = "reboot" ]]
+then
+  if [[ $# -ne 2 ]]
+  then
+    printf "\nNo VM ID given, use list command is you dont know it\n"
+    exit 1
+  fi
+  rebootVM
+fi
+
+if [[ ${args[0]} = "boot" ]]
+then
+  if [[ $# -ne 2 ]]
+  then
+    printf "\nNo VM ID given, use list command is you dont know it\n"
+    exit 1
+  fi
+  bootVM
+fi
+
+if [[ ${args[0]} = "shutdown" ]]
+then
+  if [[ $# -ne 2 ]]
+  then
+    printf "\nNo VM ID given, use list command is you dont know it\n"
+    exit 1
+  fi
+  shutdownVM
+fi
