@@ -1,0 +1,45 @@
+#!/bin/zsh
+
+SESSION=$USER
+
+IRC_NICK=$USER
+
+# if the session is already running, just attach to it.
+tmux has-session -t $SESSION
+if [ $? -eq 0 ]; then
+echo "Session $SESSION already exists. Attaching."
+sleep 1
+tmux -2 attach -t $SESSION
+exit 0;
+fi
+
+tmux new-session -d -s $SESSION
+
+# Chat Windows with twitter and centerim
+tmux new-window -t $SESSION:0 -n 'Chat' 
+tmux send-keys -t $SESSION:0.0 'centerim5' C-m
+tmux split-window -h -t $SESSION:0
+tmux send-keys -t $SESSION:0.1 'twitter' C-m
+tmux select-layout even-vertical
+
+# Mail and News with mutt and slrn
+tmux new-window -t $SESSION:1 -n 'Mail/News' 
+tmux send-keys -t $SESSION:1.0 'mutt' C-m
+tmux split-window -h -t $SESSION:1
+tmux send-keys -t $SESSION:1.1 'news' C-m
+tmux select-layout even-vertical
+
+# SSH connections to Oden and Web
+tmux new-window -t $SESSION:2 -n 'SSH' 
+tmux send-keys -t $SESSION:2.0 'k' C-m
+tmux split-window -h -t $SESSION:2
+tmux send-keys -t $SESSION:2.1 '' C-m
+tmux select-layout even-vertical
+
+# Shell x 2
+tmux new-window -t $SESSION:3 -n 'Shell' 
+tmux split-window -h -t $SESSION:3
+tmux select-layout even-vertical
+
+tmux select-window -t $SESSION:0
+tmux -2 attach -t $SESSION
