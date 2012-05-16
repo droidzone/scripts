@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+#       remove-infection - Script to remove the XYZ infection from PHP files
+#               Luis Esteban    8 December 2008
+#
+# STEP #1 - create the "yuck" file w/ the base64_decode line that is found at the top of all your php files
+# (note:  you might have more than 1 type of base64_decode infection)
+#
+#    head -1 infectedfile > yuck
+#
+# STEP #2 - create a list of infected files
+#
+#    find ./ -name '*.php' | while read FILE; do if grep 'eval(base64_decode' "$FILE"; then echo "$FILE" >> infectedfiles; else echo "$FILE" >> notinfected; fi ; done
+#
+# STEP #3 - run this shell script to clean up the infected files
+# STEP #4 - check for additional base64_decode lines in your files with the following command:
+#
+#    grep -Iir base64_decode *
+#
+# STEP #5 - If you've found more base64_decode infected files, delete/rename the files we've created (yuck, infectedfiles, notinfected, cleaned, notcleaned) and REPEAT ALL STEPS
+
+
+cat infectedfiles | while read FILE
+  do
+        echo "Cleaning $FILE"
+        FILEHEAD=`head -1 "$FILE"`
+        YUCKHEAD=`head -1 yuck`
+        if [ "$FILEHEAD" = "$YUCKHEAD" ]
+          then
+                echo "Infected, cleaning ..."
+                tail -n+2 "$FILE" > "clean"
+                                mv "clean" "$FILE"
+                echo "$FILE" >> cleaned
+          else
+                echo "Not Infected"
+                echo "$FILE" >> notcleaned
+        fi
+  done
