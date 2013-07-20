@@ -1,0 +1,8 @@
+#!/bin/bash
+
+USERNAME=xbmc
+PASSWORD=xbmc
+SERVER=192.168.1.91
+PORT=80
+
+wget --user=$USERNAME --password=$PASSWORD --delete-after --header='Content-Type: application/json' --post-data='{"jsonrpc": "2.0", "method": "VideoLibrary.Scan"}' http://$SERVER:$PORT/jsonrpc 

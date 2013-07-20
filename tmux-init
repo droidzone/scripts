@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#
+# I use this script when I login to load all of my programs I use :-) 
+#
+
+SESSION=$USER
+
+# if the session is already running, just attach to it.
+tmux has-session -t $SESSION
+if [ $? -eq 0 ]; then
+  echo "Session $SESSION already exists. Attaching."
+  sleep 1
+  tmux -2 attach -t $SESSION
+  exit 0;
+fi
+
+tmux new-session -d -s $SESSION
+
+tmux split-window -h -p 50 -t $SESSION
+tmux split-window -v -p 50 -t $SESSION
+
+tmux send-keys -t $SESSION:1.1 'centerim' C-m
+tmux send-keys -t $SESSION:1.2 'mutt' C-m
+
+tmux new-window -t $SESSION:2 -n 'SSH'
+tmux split-window -h -p 50 -t $SESSION:2
+tmux split-window -v -p 50 -t $SESSION:2
+
+tmux send-keys -t $SESSION:2.1 'ssh www' C-m
+tmux send-keys -t $SESSION:2.2 'sss status' C-m
+
+# Tmux window to start at. 
+tmux attach -t $SESSION
